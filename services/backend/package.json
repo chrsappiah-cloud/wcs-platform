@@ -1,0 +1,1 @@
+{"name":"wcs-backend","scripts":{"dev":"fastify start -l info -P 3001","build":"tsc"}}

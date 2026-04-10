@@ -1,0 +1,1 @@
+{"name":"wcs-platform","private":true,"workspaces":["services/*","frontend"],"scripts":{}}
