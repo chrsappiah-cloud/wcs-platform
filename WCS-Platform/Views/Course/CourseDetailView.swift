@@ -72,11 +72,15 @@ struct CourseDetailView: View {
                     metaBlock(course)
                     courseAtAGlance(course)
 
+                    openScholarshipBlock(course)
+
                     enrollmentBlock(course)
 
                     if course.isEnrolled {
                         progressBlock(course)
                     }
+
+                    phaseFourCompanionVideoBlock(course)
 
                     Text("Syllabus")
                         .wcsSectionTitle()
@@ -300,6 +304,94 @@ struct CourseDetailView: View {
         }
         .padding(DesignTokens.Spacing.lg)
         .wcsElevatedSurface()
+    }
+
+    @ViewBuilder
+    private func openScholarshipBlock(_ course: Course) -> some View {
+        if !viewModel.crossrefScholarship.isEmpty {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+                Text("Open scholarship (Crossref)")
+                    .font(.headline.weight(.semibold))
+                Text("DOI-linked research context for \(course.title). No API key required.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(viewModel.crossrefScholarship) { work in
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.xs) {
+                        Text(work.title)
+                            .font(.subheadline.weight(.semibold))
+                        if let doi = work.doi {
+                            Text(doi)
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        if let url = work.resourceURL {
+                            Link("Open landing page", destination: url)
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
+                    .padding(.vertical, DesignTokens.Spacing.xs)
+                }
+            }
+            .wcsInsetPanel()
+        }
+    }
+
+    @ViewBuilder
+    private func phaseFourCompanionVideoBlock(_ course: Course) -> some View {
+        if course.isEnrolled, !viewModel.companionVideoResults.isEmpty {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.md) {
+                Text("Build-up · Phase 4 — companion video from syllabus")
+                    .font(.headline.weight(.semibold))
+                Text(
+                    "Each enrolled video lesson maps to a live YouTube search from your module titles and lesson names. "
+                        + "Configure `YOUTUBE_DATA_API_KEY` in the scheme; this complements the course `videoURL` player."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                ForEach(viewModel.companionVideoResults) { bundle in
+                    VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                        Text(bundle.scriptLine.lessonTitle)
+                            .font(.subheadline.weight(.semibold))
+                        Text(bundle.scriptLine.moduleTitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(bundle.scriptLine.youTubeSearchQuery)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(3)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: DesignTokens.Spacing.sm) {
+                                ForEach(bundle.snippets) { snippet in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        YouTubeEmbedWebView(videoID: snippet.videoID)
+                                            .frame(width: 260, height: 146)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                        Text(snippet.title)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                            .frame(width: 260, alignment: .leading)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, DesignTokens.Spacing.xs)
+                }
+            }
+            .wcsInsetPanel()
+        } else if course.isEnrolled, YouTubeSearchAPIClient.resolveAPIKey() == nil {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                Text("Companion YouTube discovery")
+                    .font(.headline.weight(.semibold))
+                Text("Add `YOUTUBE_DATA_API_KEY` to your Xcode scheme to unlock Phase 4 embeds for enrolled learners.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .wcsInsetPanel()
+        }
     }
 
     @ViewBuilder

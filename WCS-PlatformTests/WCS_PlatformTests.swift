@@ -119,6 +119,102 @@ struct WCS_PlatformTests {
         }
     }
 
+    @Test func scriptLinesCoverVideoLessonsInOrder() async throws {
+        await MockLearningStore.shared.deleteBlockedAICourses()
+        let draft = makeDraftForTests(
+            title: "Script Line Coverage",
+            summary: "Ensure pipeline sees video lessons.",
+            outcomePrefix: "Learn",
+            includeFindings: false
+        )
+        await MockLearningStore.shared.publishDraftToCatalog(draft)
+
+        guard let course = await MockLearningStore.shared.snapshotCourse(draft.id) else {
+            Issue.record("Expected published course.")
+            return
+        }
+
+        let lines = ModuleVideoDiscoveryPipeline.scriptLines(from: course)
+        let videoLessonCount = course.modules.flatMap(\.lessons).filter { $0.type == .video }.count
+        #expect(lines.count == videoLessonCount)
+        #expect(!lines.isEmpty)
+        #expect(lines.first?.youTubeSearchQuery.contains(course.title) == true)
+    }
+
+    @Test func youTubeQuerySynthesis_isFastAtScale() {
+        let course = Course(
+            id: UUID(),
+            title: "World Class Scholars Bootcamp",
+            subtitle: nil,
+            description: "Learning outcomes: a | b",
+            thumbnailURL: "https://example.com/t.jpg",
+            coverURL: nil,
+            durationSeconds: 3600,
+            price: nil,
+            isEnrolled: true,
+            isOwned: true,
+            isUnlockedBySubscription: false,
+            rating: nil,
+            reviewCount: 0,
+            organizationName: "WCS",
+            level: "Beginner",
+            effortDescription: nil,
+            spokenLanguages: ["en"],
+            modules: [
+                Module(
+                    id: UUID(),
+                    title: "Foundations",
+                    description: nil,
+                    order: 0,
+                    isAvailable: true,
+                    isUnlocked: true,
+                    lessons: [
+                        Lesson(
+                            id: UUID(),
+                            title: "Welcome",
+                            subtitle: "Orientation",
+                            type: .video,
+                            videoURL: "https://example.com/v.mp4",
+                            durationSeconds: 120,
+                            isCompleted: false,
+                            isAvailable: true,
+                            isUnlocked: true,
+                            reading: nil,
+                            quiz: nil,
+                            assignment: nil
+                        )
+                    ]
+                )
+            ],
+            courseReport: nil
+        )
+
+        let lines = ModuleVideoDiscoveryPipeline.scriptLines(from: course)
+        let iterations = 3_000
+        let t0 = CFAbsoluteTimeGetCurrent()
+        for _ in 0 ..< iterations {
+            for line in lines {
+                _ = line.youTubeSearchQuery
+            }
+        }
+        let elapsed = CFAbsoluteTimeGetCurrent() - t0
+        #expect(elapsed < 0.2, "Local query synthesis should stay interactive; saw \(elapsed)s")
+    }
+
+    @Test func youTubeSearch_singleProbe_skipsWithoutKey() async throws {
+        guard YouTubeSearchAPIClient.resolveAPIKey() != nil else {
+            return
+        }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let page = try await YouTubeSearchAPIClient.searchVideos(
+            query: "online learning platform lecture",
+            maxResults: 2
+        )
+        let elapsed = CFAbsoluteTimeGetCurrent() - t0
+        #expect(elapsed < 25)
+        #expect(page.items.count <= 2)
+    }
+
 }
 
 private struct StubQuestionGenerator: AICourseGenerating {

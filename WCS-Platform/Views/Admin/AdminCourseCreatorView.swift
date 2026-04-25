@@ -281,6 +281,8 @@ private struct DraftCard: View {
                     .foregroundStyle(.secondary)
             }
 
+            AdminDraftCompanionMediaStrip(draft: draft)
+
             if draft.status != .published {
                 Button("Publish to learner catalog") {
                     onPublish()
@@ -297,6 +299,80 @@ private struct DraftCard: View {
             }
         } message: {
             Text("This clears archived video assets for this draft and generates fresh recordings in real time.")
+        }
+    }
+}
+
+/// Live YouTube Data API preview for administrators: draft module/lesson script → `search.list` → embeds.
+private struct AdminDraftCompanionMediaStrip: View {
+    let draft: AdminCourseDraft
+    @State private var results: [AdminLessonVideoDiscoveryResult] = []
+    @State private var loadError: String?
+    @State private var didAttemptLoad = false
+
+    var body: some View {
+        Group {
+            if YouTubeSearchAPIClient.resolveAPIKey() == nil {
+                EmptyView()
+            } else {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.sm) {
+                    Text("External API · YouTube companion (Data API)")
+                        .font(.caption.weight(.semibold))
+                    Text(
+                        "Maps each draft video/live lesson to a grounded search query (title + notes), then embeds top hits. Capped to four lessons per draft to protect quota."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                    if let loadError {
+                        Text(loadError)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+
+                    ForEach(results) { bundle in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(bundle.scriptLine.lessonTitle)
+                                .font(.caption.weight(.semibold))
+                            Text(bundle.scriptLine.youTubeSearchQuery)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(bundle.snippets) { snippet in
+                                        YouTubeEmbedWebView(videoID: snippet.videoID)
+                                            .frame(width: 220, height: 124)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                .padding(.top, DesignTokens.Spacing.xs)
+                .task {
+                    guard !didAttemptLoad else { return }
+                    didAttemptLoad = true
+                    await loadCompanion()
+                }
+            }
+        }
+    }
+
+    private func loadCompanion() async {
+        let lines = Array(ModuleVideoDiscoveryPipeline.adminScriptLines(from: draft).prefix(4))
+        guard !lines.isEmpty else { return }
+        do {
+            results = try await ModuleVideoDiscoveryPipeline.resolveAdminDraftVideos(
+                scriptLines: lines,
+                maxResultsPerLesson: 2
+            )
+            loadError = nil
+        } catch {
+            results = []
+            loadError = error.localizedDescription
         }
     }
 }

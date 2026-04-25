@@ -80,8 +80,33 @@ struct ProfileView: View {
 
             Section {
                 SubscriptionBadgeView(subscriptions: appViewModel.user?.subscriptions ?? [])
+                NavigationLink {
+                    MembershipPaymentsHubView()
+                } label: {
+                    Label("Membership & card payouts", systemImage: "creditcard")
+                }
             } header: {
                 Text("Subscriptions")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+
+            Section {
+                if BrandOutboundLinks.current.socialPairs.isEmpty {
+                    Text(
+                        "Configure SOCIAL_INSTAGRAM_URL, SOCIAL_TIKTOK_URL, SOCIAL_FACEBOOK_URL, SOCIAL_X_URL, SOCIAL_YOUTUBE_CHANNEL_URL, or SOCIAL_LINKEDIN_URL for learners, faculty, and staff."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(BrandOutboundLinks.current.socialPairs.enumerated()), id: \.offset) { _, pair in
+                        Link(pair.label, destination: pair.url)
+                    }
+                }
+            } header: {
+                Text("Community & social")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
