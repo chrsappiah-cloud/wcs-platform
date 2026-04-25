@@ -53,6 +53,72 @@ struct WCS_PlatformTests {
         }
     }
 
+    @Test func publishedDraftVideoLessonsResolvePlaybackURLs() async throws {
+        await MockLearningStore.shared.deleteBlockedAICourses()
+        let draft = makeDraftForTests(
+            title: "AI Video Rendering Validation",
+            summary: "Validate that all module video lessons resolve playback URLs.",
+            outcomePrefix: "Render playable module videos",
+            includeFindings: true
+        )
+
+        await MockLearningStore.shared.publishDraftToCatalog(draft)
+
+        // Video assets are applied asynchronously; poll for completion.
+        let deadline = Date().addingTimeInterval(8)
+        var latestCourse: Course?
+        while Date() < deadline {
+            if let course = await MockLearningStore.shared.snapshotCourse(draft.id) {
+                latestCourse = course
+                let videoLessons = course.modules.flatMap(\.lessons).filter { $0.type == .video }
+                let allResolved = !videoLessons.isEmpty && videoLessons.allSatisfy {
+                    guard let url = $0.videoURL else { return false }
+                    return url.hasPrefix("http")
+                }
+                if allResolved { break }
+            }
+            try await Task.sleep(nanoseconds: 300_000_000)
+        }
+
+        guard let course = latestCourse else {
+            #expect(Bool(false), "Published course should be retrievable for video validation.")
+            return
+        }
+
+        let videoLessons = course.modules.flatMap(\.lessons).filter { $0.type == .video }
+        #expect(!videoLessons.isEmpty, "Expected at least one video lesson in generated module structure.")
+        #expect(videoLessons.allSatisfy { ($0.videoURL ?? "").hasPrefix("http") })
+        #expect(videoLessons.allSatisfy { ($0.subtitle ?? "").isEmpty == false })
+    }
+
+    @Test func generatedVideoAssetsContainModuleMediaMetadata() async throws {
+        let draft = makeDraftForTests(
+            title: "AI Media Metadata Validation",
+            summary: "Validate script segments, YouTube companion hints, and audio readiness metadata.",
+            outcomePrefix: "Verify media metadata quality",
+            includeFindings: false
+        )
+        let generator = MockAIVideoGenerator()
+        let generated = await generator.generateVideoAssets(for: draft) { _ in }
+
+        #expect(!generated.isEmpty, "Expected generated video assets for video lessons.")
+
+        for asset in generated.values {
+            #expect((asset.youtubeCompanionURL ?? "").contains("youtube.com/results"))
+            #expect(!(asset.youtubeSearchKeywords ?? []).isEmpty)
+            #expect(!(asset.moduleScriptSegments ?? []).isEmpty)
+            #expect((asset.tutorialNarrationText ?? "").contains("World Class Scholars"))
+            #expect(!(asset.microphoneChecklist ?? []).isEmpty)
+            #expect((asset.audioSystemStatus ?? "").isEmpty == false)
+            #expect(
+                (asset.openAIRecommendedPipeline ?? []).contains(where: { $0.contains("/v1/videos") })
+            )
+            #expect(
+                (asset.openAIRecommendedPipeline ?? []).contains(where: { $0.contains("/v1/audio/speech") })
+            )
+        }
+    }
+
 }
 
 private struct StubQuestionGenerator: AICourseGenerating {
