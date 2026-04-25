@@ -1,0 +1,37 @@
+name: WCS-Platform
+options:
+  minimumXcodeGenVersion: 2.38.0
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: 18.0
+    PRODUCT_BUNDLE_IDENTIFIER: org.worldclassscholars.platform
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0
+    DEVELOPMENT_TEAM: ""
+targets:
+  WCS-Platform:
+    type: application
+    platform: iOS
+    sources:
+      - path: Models
+      - path: Network
+      - path: ViewModels
+      - path: Views
+      - path: Core
+      - path: WCS_PlatformApp.swift
+    resources:
+      - path: Assets.xcassets
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: WCS_Platform.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+schemes:
+  WCS-Platform:
+    build:
+      targets:
+        WCS-Platform: all
+    run:
+      config: Debug

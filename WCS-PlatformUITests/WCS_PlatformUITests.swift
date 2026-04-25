@@ -24,13 +24,13 @@ final class WCS_PlatformUITests: XCTestCase {
 
     @MainActor
     func testExample() throws {
-        // UI tests must launch the application that they test.
         let app = XCUIApplication()
         app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Discover"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Programs"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Discussion"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Profile"].exists)
     }
 
     @MainActor

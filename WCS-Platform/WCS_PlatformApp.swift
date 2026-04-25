@@ -6,27 +6,32 @@
 //
 
 import SwiftUI
-import SwiftData
+import UIKit
+import os
 
 @main
 struct WCS_PlatformApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @Environment(\.scenePhase) private var scenePhase
+    private let logger = Logger(subsystem: "org.worldclassscholars.platform", category: "lifecycle")
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView()
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    logger.warning("Memory warning received in app process")
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    switch newPhase {
+                    case .active:
+                        logger.info("Scene phase changed: active")
+                    case .inactive:
+                        logger.info("Scene phase changed: inactive")
+                    case .background:
+                        logger.info("Scene phase changed: background")
+                    @unknown default:
+                        logger.info("Scene phase changed: unknown")
+                    }
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }
